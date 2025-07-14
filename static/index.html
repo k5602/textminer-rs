@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextMiner-rs - PII Redaction Service Implemented in Rust</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        button:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .result {
+            white-space: pre-wrap;
+            background-color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 4px;
+            min-height: 100px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stats {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .api-info {
+            margin-top: 2rem;
+        }
+
+        .api-info h3 {
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        pre {
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-size: 0.875rem;
+        }
+
+        code {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
+        .highlight {
+            background-color: #fef3c7;
+            padding: 0.2em 0.4em;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>textminer-rs</h1>
+        <p>Redact Personally Identifiable Information (PII) from your text using AI</p>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>Input Text</h2>
+            <textarea id="inputText" placeholder="Paste your text here...">Khaled Mahmoud lives in Alexandria and his email is khaled.mahmoud@example.com. Works at Microsoft.</textarea>
+            <button id="redactBtn">Redact PII</button>
+            <div class="stats" id="stats"></div>
+        </div>
+
+        <div class="card">
+            <h2>Redacted Text</h2>
+            <div class="result" id="result">Redacted text will appear here...</div>
+            <div class="stats" id="processingTime"></div>
+        </div>
+    </div>
+
+    <div class="api-info">
+        <h3>API Usage</h3>
+        <p>You can also use the Redactr API programmatically:</p>
+        
+        <h4>Request</h4>
+        <pre><code>POST /api/redact
+Content-Type: application/json
+
+{
+    "text": "Khaled Mahmoud lives in Alexandria and his email is khaled.mahmoud@example.com ."
+}</code></pre>
+
+        <h4>Response</h4>
+        <pre><code>{
+    "redacted_text": "[PERSON] lives in [LOCATION] and his email is [EMAIL].",
+    "processing_time_ms": 42
+}</code></pre>
+
+        <h4>Health Check</h4>
+        <pre><code>GET /api/health</code></pre>
+        <pre><code>{
+    "status": "ok",
+    "model_loaded": true
+}</code></pre>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputText = document.getElementById('inputText');
+            const redactBtn = document.getElementById('redactBtn');
+            const result = document.getElementById('result');
+            const stats = document.getElementById('stats');
+            const processingTime = document.getElementById('processingTime');
+
+            async function redactText() {
+                const text = inputText.value.trim();
+                if (!text) {
+                    alert('Please enter some text to redact');
+                    return;
+                }
+
+                redactBtn.disabled = true;
+                redactBtn.textContent = 'Processing...';
+                result.textContent = 'Processing...';
+                stats.textContent = '';
+                processingTime.textContent = '';
+
+                try {
+                    const startTime = performance.now();
+                    const response = await fetch('/api/redact', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ text })
+                    });
+
+                    const data = await response.json();
+                    const endTime = performance.now();
+                    const totalTime = Math.round(endTime - startTime);
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to process text');
+                    }
+
+                    result.textContent = data.redacted_text;
+                    processingTime.textContent = `Processed in ${totalTime}ms (server: ${data.processing_time_ms}ms)`;
+                    
+                    // Calculate some basic stats
+                    const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+                    const charCount = text.length;
+                    stats.textContent = `${wordCount} words, ${charCount} characters`;
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    result.textContent = `Error: ${error.message}`;
+                } finally {
+                    redactBtn.disabled = false;
+                    redactBtn.textContent = 'Redact PII';
+                }
+            }
+
+            redactBtn.addEventListener('click', redactText);
+        });
+    </script>
+</body>
+</html>

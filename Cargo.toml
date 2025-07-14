@@ -1,0 +1,33 @@
+[package]
+name = "text-miner"
+version = "0.1.0"
+edition = "2024"
+description = "A high-performance PII redaction service using BERT NER"
+license = "MIT"
+repository = "https://github.com/k5602/redactr-rs"
+readme = "README.md"
+keywords = ["pii", "redaction", "ner", "nlp", "privacy"]
+categories = ["web-programming", "text-processing"]
+
+[dependencies]
+actix-web = "4.9.0"
+actix-rt = "2.10.0"
+tokio = { version = "1.46.1", features = ["full"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0.132"
+rust-bert = { version = "0.23.0", features = ["download-libtorch"] }
+lazy_static = "1.5.0"
+log = "0.4.22"
+env_logger = "0.11.5"
+thiserror = "1.0.66"
+anyhow = "1.0.86"
+console = { version = "0.16.0", features = ["std"] }
+indicatif = "0.17.8"
+
+[dev-dependencies]
+actix-http = "3.9.0"
+actix-test = "0.1.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
