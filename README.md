@@ -2,14 +2,20 @@
 
 A high-performance, privacy-focused microservice for redacting Personally Identifiable Information (PII) from text using BERT-based Named Entity Recognition (NER). Built with Rust and Actix Web for maximum performance and reliability.
 
+## Future Improvements
+
+Planned enhancements for upcoming versions:
+
+- Fine-tuned model for better entity recognition
+- Support for additional PII types (emails, phone numbers, etc.)
+- Custom entity recognition patterns
+
 ## Features
 
-- 🔍 **Advanced PII Detection**: Uses BERT-based NER to identify various types of PII including:
+- 🔍 **PII Detection**: Uses BERT-based NER to identify various types of PII including:
   - Person names
   - Locations
-  - Email addresses
   - Organizations
-  - And more...
 
 - ⚡ **High Performance**: Built with Rust and Actix-Web for exceptional throughput and low latency
 - 🎯 **Simple API**: Easy-to-use HTTP endpoints for integration with any application
@@ -49,47 +55,85 @@ The service will start on `http://0.0.0.0:8080`
 
 ## API Endpoints
 
-### Redact Text
+### Single Text Redaction
 
-Detect and redact PII from the provided text.
+`POST /api/redact` - Redact PII from a single text
 
-- **URL**: `/api/redact`
-- **Method**: `POST`
-- **Content-Type**: `application/json`
-- **Request Body**:
+#### Request:
 
-  ```json
-  {
-      "text": "John Doe lives in New York and works at Example Corp. Contact: john@example.com"
+```json
+{
+  "text": "Your text containing PII like John Smith and New York"
+}
+```
+
+#### Response:
+
+```json
+{
+  "redacted_text": "Your text containing PII like [PER] and [LOC]",
+  "processing_time_ms": 42,
+  "entities_found": 2,
+  "entity_types": ["PER", "LOC"],
+  "confidence_scores": [0.98, 0.92]
+}
+```
+
+### Batch Text Redaction
+
+`POST /api/redact/batch` - Redact PII from multiple texts in a single request
+
+#### Request:
+
+```json
+{
+  "texts": [
+    "First text with PII like John Smith",
+    "Second text with locations like New York and London"
+  ],
+  "options": {
+    "include_confidence": true
   }
-  ```
+}
+```
 
-- **Success Response**:
-  - **Code**: 200 OK
-  - **Content**:
+#### Response:
 
-    ```json
+```json
+{
+  "results": [
     {
-        "redacted_text": "[PERSON] lives in [LOCATION] and works at [ORG]. Contact: [EMAIL]",
-        "processing_time_ms": 42
+      "redacted_text": "First text with PII like [PER]",
+      "processing_time_ms": 0,
+      "entities_found": 1,
+      "entity_types": ["PER"],
+      "confidence_scores": [0.98]
+    },
+    {
+      "redacted_text": "Second text with locations like [LOC] and [LOC]",
+      "processing_time_ms": 0,
+      "entities_found": 2,
+      "entity_types": ["LOC", "LOC"],
+      "confidence_scores": [0.95, 0.92]
     }
-    ```
+  ],
+  "total_processing_time_ms": 65,
+  "total_entities_found": 3
+}
+```
 
 ### Health Check
 
-Check if the service is running and the BERT model is loaded.
+`GET /api/health` - Health check endpoint
 
-- **URL**: `/api/health`
-- **Method**: `GET`
-- **Success Response**:
-  - **Code**: 200 OK
-  - **Content**:
-    ```json
-    {
-        "status": "ok",
-        "model_loaded": true
-    }
-    ```
+#### Response:
+
+```json
+{
+  "status": "ok",
+  "model_loaded": true
+}
+```
 
 ## Performance
 
